@@ -1,82 +1,127 @@
 class DFA
-	def initialize(states:, alphabet:, transitions:, start:, final:)
-		# states	=> Array of Symbol
-		# alphabet	=> Array of String, each 1 character long
-		# transitions	=> Hash of the form {[qx, a]: qy, ...} where qx and qy are members of
-		#            	   "states" and a is a member of "alphabet"
-		# start		=> (Symbol) Member of "states"
-		# final		=> (Array of Symbol) Subset of "states"
+  def initialize(states:, alphabet:, transitions:, start:, final:)
+    # states		=> Array of Symbols, without duplicates
+    # alphabet		=> Array of Strings, each 1 character long, without duplicates
+    # transitions	=> Hash where all keys are Symbols, and all values are Hashes where all keys are Strings and all values are Symbols. Each Symbol must be a member of `states'. This Hash must have an entry for each member of `states'. Each String must be a member of `alphabet', and each sub-Hash must have an entry for each member of `alphabet'. 
+    # start		=> Member of `states'
+    # final		=> Subset of `states', without duplicates
 
-		# Parameter validation phase
-		raise TypeError, "`states:' must be of class Array" unless states.class == Array
-		states.each do |s|
-			raise TypeError, "`states:' must contain only elements of class Symbol" \
-			unless s.class == Symbol
-		end		
+    # Parameter validation phase
 
-		raise TypeError, "`alphabet:' must be of class Array" unless alphabet.class == Array
-		alphabet.each do |a|
-			raise TypeError, "`alphabet:' must contain only elements of class String" \
-			unless a.class == String
-			raise ArgumentError, "Strings in `alphabet:' must be exactly one character long" \
-			unless a.length == 1
-		end
+    raise TypeError, "`states:' must be of class Array" \
+    unless states.class == Array
 
-		# TODO: Potential vulnerability here due to not directly verifying that certian values
-		# are of the right class
+    states = states.uniq
+
+    raise TypeError, "`states:' must contain only elements of class Symbol" \
+    unless states.all? { |s| s.class == Symbol }
+
+    raise TypeError, "`alphabet:' must be of class Array" \
+    unless alphabet.class == Array
+
+    alphabet = alphabet.uniq
+
+    alphabet.each do |a|
+    
+      raise TypeError, "`alphabet:' must contain only elements of class String" \
+      unless a.class == String
+    
+      raise ArgumentError, "Strings in `alphabet:' must be exactly one character long" \
+      unless a.length == 1
+
+    end
+
+    raise ArgumentError, "`start:' must be a member of `states:'" \
+    unless states.include? start
+
+    raise TypeError, "`final:' must be of class Array" \
+    unless final.class == Array
+
+    final = final.uniq
+
+    raise ArgumentError, "`final:' must be a subset of `states:'" \
+    unless final.all? { |s| states.include? s }
 		
-		raise TypeError, "`transitions:' must be of class Hash" unless transitions.class == Hash
-		transitions.each_pair do |situation, destination|
-			raise ArgumentError, "Invalid `transitions:' format. `transitions:' must be of " \
-			"class Hash,  with the form `{[qx, a]: qy, ...}' where `qx' and `qy' are " \
-			"members of `states:' and `a' is a member of `alphabet:'" unless
-				situation.class == Array and
-			   	situation.length == 2 and
-			   	states.include?(situation[0]) and
-			   	alphabet.include?(situation[1]) and
-			   	states.include?(destination)
-		end
+    raise TypeError, "`transitions:' must be of class Hash" \
+    unless transitions.class == Hash
 
-		raise ArgumentError, "`start:' must be a member of `states:'" unless states.include? start
+    transitions.each_pair do |from, transition|
 
-		raise TypeError, "`final:' must be of class Array" unless final.class == Array
-		final.each do |s|
-			raise ArgumentError, "`final:' must be a subset of `states:'" unless states.include? s
-		end	
+      raise TypeError, "Invalid type in `transitions:'" \
+      unless from.class == Symbol and
+      transition.class == Hash and
+      transition.keys.all? { |symbol| symbol.class == String } and
+      transition.values.all? { |to| to.class == Symbol }
 
-		# Finally initializing the darn thing
-		# TODO: Some or all of these should be deep copies
-		@states = states
-		@alphabet = alphabet
-		@transitions = transitions
-		@start = start
-		@final = final
-	end
+    end
 
-	def inspect
-		# Would be nice to rewrite this at some point so that the output is more visually beautiful
-		"states:\n\t#{@states.inspect}\n" \
-		"alphabet:\n\t#{@alphabet.inspect}\n" \
-		"transitions:\n\t#{@transitions.inspect}\n" \
-		"start:\n\t#{@start.inspect}\n" \
-		"final:\n\t#{@final.inspect}\n"
-	end
+    raise ArgumentError, "`transitions:' must have an entry for each member of `states:'" \
+    unless states.all? { |s| transitions.has_key? s }
 
-	def to_s
-		inspect
-	end
+    raise ArgumentError, "Extraneous entry found in `transitions:'" \
+    unless transitions.keys.all? { |from| states.include? from }
 
-	def accepts? string
-	end
+    raise ArgumentError, "Each Hash in `transitions:' must have an entry for each member of `alphabet:'" \
+    unless transitions.values.all? do |transition|
+      alphabet.all? { |symbol| transition.has_key? symbol }
+    end
+
+    transitions.values.all? do |transition|
+
+      raise ArgumentError, "Each Hash in `transitions:' must have an entry for each member of `alphabet:'" \
+      unless alphabet.all? { |symbol| transition.has_key? symbol }
+
+      raise ArgumentError, "Extraneous entry found in Hash in `transitions:'" \
+      unless transition.keys.all? { |symbol| alphabet.include? symbol }
+
+      raise ArgumentError, "Nonexistent destination state found in `transitions:'" \
+      unless transition.values.all? { |to| states.include? to }
+
+    end
+
+    # Finally initializing the darn thing
+    @states = states.map { |s| s.dup }
+    @alphabet = alphabet.map { |a| a.dup }
+    @transitions = {}
+    transitions.each_pair do |from, transition|
+      copy = {}
+      transition.each_pair do |symbol, to|
+        copy.store symbol.dup, to.dup
+      end
+      @transitions.store from.dup, copy
+    end
+    @start = start.dup
+    @final = final.map { |f| f.dup }
+  end
+
+  def inspect
+    # Would be nice to rewrite this at some point so that the output is more visually beautiful
+    "states:\n\t#{@states.inspect}\n" \
+    "alphabet:\n\t#{@alphabet.inspect}\n" \
+    "transitions:\n\t#{@transitions.inspect}\n" \
+    "start:\n\t#{@start.inspect}\n" \
+    "final:\n\t#{@final.inspect}\n"
+  end
+
+  def to_s
+    inspect
+  end
+
+  def accepts? string
+  end
 
 end
 
 dfa = DFA.new(
-	states: [:q0],
-	alphabet: ['a'],
-	transitions: {},
-	start: :q0,
-	final: [:q0]
+  states: [:q0],
+  alphabet: ['a'],
+  transitions: {
+    q0: {
+      'a' => :q0
+    }
+  },
+  start: :q0,
+  final: [:q0]
 )
 
 puts dfa.inspect
