@@ -2,7 +2,12 @@ class DFA
   def initialize(states:, alphabet:, transitions:, start:, final:)
     # states		=> Array of Symbols, without duplicates
     # alphabet		=> Array of Strings, each 1 character long, without duplicates
-    # transitions	=> Hash where all keys are Symbols, and all values are Hashes where all keys are Strings and all values are Symbols. Each Symbol must be a member of `states'. This Hash must have an entry for each member of `states'. Each String must be a member of `alphabet', and each sub-Hash must have an entry for each member of `alphabet'. 
+    # transitions	=> Hash where all keys are Symbols, and all values are Hashes
+    # 			   where all keys are Strings and all values are Symbols.
+    #			   Each Symbol must be a member of `states'. This Hash must
+    #			   have an entry for each member of `states'. Each String
+    #			   must be a member of `alphabet', and each sub-Hash must
+    #			   have an entry for each member of `alphabet'. 
     # start		=> Member of `states'
     # final		=> Subset of `states', without duplicates
 
@@ -80,6 +85,7 @@ class DFA
     end
 
     # Finally initializing the darn thing
+
     @states = states.map { |s| s.dup }
     @alphabet = alphabet.map { |a| a.dup }
     @transitions = {}
@@ -108,6 +114,17 @@ class DFA
   end
 
   def accepts? string
+    string.each_char do |c|
+      raise ArgumentError, 'invalid character in string' \
+      unless @alphabet.include? c
+    end
+
+    state = @start
+    string.each_char do |symbol|
+      state = @transitions[state][symbol]
+      return false if state.nil?
+    end
+    return @final.include? state
   end
 
 end
@@ -125,3 +142,12 @@ dfa = DFA.new(
 )
 
 puts dfa.inspect
+
+puts "\nEnter a string to test:"
+string = gets.chomp("\n")
+
+begin
+  puts "The DFA #{dfa.accepts?(string) ? 'accepts' : 'doesn\'t accept'} the string #{string.inspect}."
+rescue ArgumentError
+  puts "The string #{string.inspect} contains a symbol that is not part of the DFA's alphabet."
+end
