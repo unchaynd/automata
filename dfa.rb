@@ -1,7 +1,7 @@
 class DFA
   def initialize(states:, alphabet:, transitions:, start:, final:)
-    # states		=> Array of Symbols, without duplicates
-    # alphabet		=> Array of Strings, each 1 character long, without duplicates
+    # states		=> Array of Symbols
+    # alphabet		=> Array of Strings, each 1 character long
     # transitions	=> Hash where all keys are Symbols, and all values are Hashes
     # 			   where all keys are Strings and all values are Symbols.
     #			   Each Symbol must be a member of `states'. This Hash must
@@ -9,7 +9,7 @@ class DFA
     #			   must be a member of `alphabet', and each sub-Hash must
     #			   have an entry for each member of `alphabet'. 
     # start		=> Member of `states'
-    # final		=> Subset of `states', without duplicates
+    # final		=> Subset of `states'
 
     # Parameter validation phase
 
@@ -102,11 +102,11 @@ class DFA
 
   def inspect
     # Would be nice to rewrite this at some point so that the output is more visually beautiful
-    "states:\n\t#{@states.inspect}\n" \
-    "alphabet:\n\t#{@alphabet.inspect}\n" \
-    "transitions:\n\t#{@transitions.inspect}\n" \
-    "start:\n\t#{@start.inspect}\n" \
-    "final:\n\t#{@final.inspect}\n"
+    "states:\n  #{@states.inspect}\n" \
+    "alphabet:\n  #{@alphabet.inspect}\n" \
+    "transitions:\n  #{@transitions.inspect}\n" \
+    "start:\n  #{@start.inspect}\n" \
+    "final:\n  #{@final.inspect}\n"
   end
 
   def to_s
@@ -122,23 +122,37 @@ class DFA
     state = @start
     string.each_char do |symbol|
       state = @transitions[state][symbol]
-      return false if state.nil?
     end
     return @final.include? state
   end
 
 end
 
+
+# Accepts any string of a's and b's that starts and ends with 'a'
 dfa = DFA.new(
-  states: [:q0],
-  alphabet: ['a'],
+  states: [:q0, :q1, :q2, :q3],
+  alphabet: ['a', 'b'],
   transitions: {
     q0: {
-      'a' => :q0
+      'a' => :q1,
+      'b' => :q2
+    },
+    q1: {
+      'a' => :q1,
+      'b' => :q3
+    },
+    q2: {
+      'a' => :q2,
+      'b' => :q2
+    },
+    q3: {
+      'a' => :q1,
+      'b' => :q3
     }
   },
   start: :q0,
-  final: [:q0]
+  final: [:q1]
 )
 
 puts dfa.inspect
