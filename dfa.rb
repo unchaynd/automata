@@ -24,6 +24,9 @@ class DFA
     raise TypeError, "`alphabet:' must be of class Array" \
     unless alphabet.class == Array
 
+    raise ArgumentError, "`alphabet' must not be empty" \
+    if alphabet.empty?
+
     alphabet = alphabet.uniq
 
     alphabet.each do |a|
