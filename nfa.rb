@@ -2,16 +2,16 @@
 
 class NFA
 
-  def initialize(states:, alphabet:, transitions:, start:, final:)
-    # states      => Array of Symbols
-    # alphabet    => non-empty Array of Strings, each 1 character long
-    # transitions => Hash where all keys are Symbols, and all values are Hashes
-    #                where all keys are Strings and all values are non-empty
-    #                Arrays of Symbols. Each Symbol must be a member of
-    #                'states'. Each String must be either a member of 'alphabet'
-    #                or the empty string.
-    # start       => Array of Symbols, that is a subset of 'states'. It may only be empty if 'states' is empty.
-    # final       => Array of Symbols (subset of 'states')
+  def initialize(states:, alphabet:, delta:, start:, final:)
+    # states   => Array of Symbols
+    # alphabet => non-empty Array of Strings, each 1 character long
+    # delta    => Hash where all keys are Symbols, and all values are Hashes
+    #             where all keys are Strings and all values are non-empty
+    #             Arrays of Symbols. Each Symbol must be a member of
+    #             'states'. Each String must be either a member of 'alphabet'
+    #             or the empty string.
+    # start    => Array of Symbols, that is a subset of 'states'. It may only be empty if 'states' is empty.
+    # final    => Array of Symbols (subset of 'states')
 
     # Parameter validation phase
 
@@ -46,38 +46,38 @@ class NFA
 
     end
 
-    # 'transitions' validation
+    # 'delta' validation
 
-    raise TypeError, "`transitions:' must be of class Hash. #{transitions.class} encountered." \
-    unless transitions.class == Hash
+    raise TypeError, "`delta:' must be of class Hash. #{delta.class} encountered." \
+    unless delta.class == Hash
 
-    transitions.each_pair do |from, transition|
+    delta.each_pair do |from, transition|
 
-      raise TypeError, "Keys in `transitions:' must be of class Symbol. #{from.class} encountered." \
+      raise TypeError, "Keys in `delta:' must be of class Symbol. #{from.class} encountered." \
       unless from.class == Symbol
 
-      raise ArgumentError, "Keys in `transitions:' must be a member of `states:'. #{from.inspect} is invalid." \
+      raise ArgumentError, "Keys in `delta:' must be a member of `states:'. #{from.inspect} is invalid." \
       unless states.include? from
 
-      raise TypeError, "Values in `transitions:' must be of class Hash. #{transition.class} encountered." \
+      raise TypeError, "Values in `delta:' must be of class Hash. #{transition.class} encountered." \
       unless transition.class == Hash
 
       transition.each_pair do |symbol, choices|
 
-        raise TypeError, "Keys in sub-Hashes in `transitions' must be of class String. #{symbol.class} encountered." \
+        raise TypeError, "Keys in sub-Hashes in `delta:' must be of class String. #{symbol.class} encountered." \
         unless symbol.class == String
 
-        raise ArgumentError, "Keys in sub-Hashes in `transitions:' must be either a member of `alphabet:' or the empty String. #{symbol.inspect} is invalid." \
+        raise ArgumentError, "Keys in sub-Hashes in `delta:' must be either a member of `alphabet:' or the empty String. #{symbol.inspect} is invalid." \
         unless symbol.empty? or alphabet.include? symbol
 
-        raise TypeError, "Values in sub-Hashes in `transitions:' must be of class Array. #{choices.class} encountered." \
+        raise TypeError, "Values in sub-Hashes in `delta:' must be of class Array. #{choices.class} encountered." \
         unless choices.class == Array
 
         choices.each do |s|
-          raise TypeError, "Arrays in sub-Hashes in `transitions:' must contain only elements of class Symbol. #{s.class} encountered." \
+          raise TypeError, "Arrays in sub-Hashes in `delta:' must contain only elements of class Symbol. #{s.class} encountered." \
           unless s.class == Symbol
 
-          raise ArgumentError, "Arrays in sub-Hashes in `transitions:' must contain only members of `states:'. #{s.inspect} is invalid." \
+          raise ArgumentError, "Arrays in sub-Hashes in `delta:' must contain only members of `states:'. #{s.inspect} is invalid." \
           unless states.include? s
         end
       end
@@ -120,15 +120,15 @@ class NFA
 
     @states = states.map { |s| s.dup }
     @alphabet = alphabet.map { |a| a.dup }
-    @transitions = {}
+    @delta = {}
     # Potential vulnerability here due to how Strings work as Hash keys in Ruby,
     # but tryng to fix that is outside the scope of this prject
-    transitions.each_pair do |from, transition|
+    delta.each_pair do |from, transition|
       copy = {}
       transition.each_pair do |symbol, options|
         copy[symbol.dup] = options.uniq.map { |o| o.dup }
       end
-      @transitions.store from.dup, copy
+      @delta.store from.dup, copy
     end
     @start = start.map { |s| s.dup }
     @final = final.map { |s| s.dup }
@@ -138,7 +138,7 @@ class NFA
   def inspect
     "states:\n  #{@states.inspect}\n" \
     "alphabet:\n  #{@alphabet.inspect}\n" \
-    "transitions:\n  #{@transitions.inspect}\n" \
+    "delta:\n  #{@delta.inspect}\n" \
     "start:\n  #{@start.inspect}\n" \
     "final:\n  #{@final.inspect}"
   end
@@ -148,13 +148,65 @@ class NFA
   end
 
   def accepts? string
+
+    # check that the input string is valid
+    string.each_char do |c|
+      raise ArgumentError, 'invalid character in string' \
+      unless @alphabet.include? c
+    end
+
+    # this variable is used to hold the set of possible states that the NFA could be in at each step
+    p = @start.dup
+
+    string.each_char do |symbol|
+
+      # calculate the epsilon closure
+      stack = p.dup
+      until stack.empty?
+        state = stack.pop
+        if @delta[state].has_key? ''
+          @delta[state][''].each do |to|
+            if p.include? to
+              next
+            else
+              p << to
+              stack.push to
+            end
+          end
+        end
+      end
+
+      # construct a new set of possible states based on the current symbol
+      new_p = []
+      p.each do |state|
+        if @delta[state].has_key? symbol
+          new_p = new_p.union @delta[state][symbol]
+        end
+      end
+
+      # if the new set is empty, a dead end has been reached
+      return false if new_p.empty?
+
+      # otherwise, continue on
+      p = new_p
+
+    end
+
+    # if any of the possible end states are in the 'final' set, then the string is accepted
+    if p.intersection(@final).empty?
+      return false
+    else
+      return true
+    end
+
   end
+
 end
 
 nfa = NFA.new(
   states: [:q0],
   alphabet: ['a'],
-  transitions: {},
+  delta: {},
   start: [:q0],
   final: [:q0]
 )
